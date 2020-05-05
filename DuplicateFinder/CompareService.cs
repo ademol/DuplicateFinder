@@ -9,16 +9,20 @@ namespace DuplicateFinder
     {
         private static readonly SHA256 Sha256 = SHA256.Create();
 
-        public static readonly Dictionary<string, string> DuplicateFileHashes = new Dictionary<string, string>();
-
         private static readonly List<FileDetail> FileDetails = new List<FileDetail>();
 
         private static readonly IOutput Output = DuplicateFinder.Output.Instance;
 
-        public static void AddFile(FileDetail file)
+        public static void AddFile(FileDetail fileDetail)
         {
-            FileDetails.Add(file);
+            FileDetails.Add(fileDetail);
         }
+
+        public static IEnumerable<FileDetail> GetFilesWithDuplicates()
+        {
+            return FileDetails.Where(s => s.HasDuplicates).ToList();
+        }
+        
         
         public static string GetSha256(string filename)
         {
@@ -38,19 +42,15 @@ namespace DuplicateFinder
             return bytes.Aggregate("", (current, b) => current + b.ToString("x2"));
         }
 
-        public static bool IsSame(FileDetail newFile)
+        public static void CheckForDuplicates(FileDetail newFile)
         {
-            var isSame = false;
             foreach (var file in FileDetails.Where(file => SizeMatches(file, newFile))
                 .Where(file => Sha256Matches(file, newFile)))
             {
                 Output.Write($"Collision: [{newFile.FileName}] [{file.FileName}]");
-                isSame = true;
-                DuplicateFileHashes.TryAdd(file.FileName, file.Sha256);
-                DuplicateFileHashes.Add(newFile.FileName, newFile.Sha256);
+                newFile.HasDuplicates = true;
+                file.HasDuplicates = true;
             }
-
-            return isSame;
         }
 
         private static bool Sha256Matches(FileDetail file, FileDetail newFile)

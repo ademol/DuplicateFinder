@@ -9,6 +9,8 @@ namespace DuplicateFinder
 
         public string Sha256 => Sha256Lazy ??= (Sha256Lazy = CompareService.GetSha256(FileName));
 
+        public bool HasDuplicates { get; set; }
+        
         public FileDetail(string fileName)
         {
             FileName = fileName;

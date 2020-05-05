@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace DuplicateFinder
@@ -12,9 +10,8 @@ namespace DuplicateFinder
 
         private static void Main(string[] args)
         {
-            if (args?.Count() > 0)
+            if (args?.Length > 0)
             {
-                var path = args[0];
                 SearchSinglePath(args[0]);
                 DisplayDuplicates();
                 Environment.Exit(0);
@@ -26,19 +23,18 @@ namespace DuplicateFinder
 
         private static void DisplayDuplicates()
         {
-            var fileNames = CompareService.DuplicateFileHashes.Keys.ToList();
-            fileNames.Sort();
-
-            var output = new List<string>();
-            foreach (var fileName in fileNames)
+            var fileDetails = CompareService.GetFilesWithDuplicates();
+            
+            var currentSha = "";
+            foreach (var fileDetail in fileDetails)
             {
-                output.Add($"[{CompareService.DuplicateFileHashes[fileName]}] : [{fileName}]");
-            }
+                if (currentSha != fileDetail.Sha256)
+                {
+                    Output.Write("");
+                    currentSha = fileDetail.Sha256;
+                }
 
-            output.Sort();
-            foreach (var s in output)
-            {
-                Output.Write(s);
+                Output.Write($"[{fileDetail.Sha256}] : [{fileDetail.FileName}]");
             }
         }
 
@@ -60,9 +56,6 @@ namespace DuplicateFinder
         private static void SearchAll()
         {
             var drives = FileWalker.EnumerateFileSystems();
-
-            var tasks = new List<Task>();
-
             Parallel.ForEach(drives, SearchSinglePath);
         }
     }

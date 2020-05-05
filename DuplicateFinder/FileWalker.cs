@@ -58,7 +58,7 @@ namespace DuplicateFinder
         {
             var extensionsToFilterOut = new List<string>
             {
-                ".mp4", ".jpg", ".mp3", ".doc", ".webm"
+                ".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"
             };
 
             var extension = Path.GetExtension(fileName).ToLower();
@@ -96,10 +96,8 @@ namespace DuplicateFinder
                 try
                 {
                     var fd = new FileDetail(file);
-                    if (!CompareService.IsSame(fd))
-                    {
-                        CompareService.AddFile(fd);
-                    }
+                    CompareService.CheckForDuplicates(fd);
+                    CompareService.AddFile(fd);
                 }
                 catch (Exception e)
                 {
