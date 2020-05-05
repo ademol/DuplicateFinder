@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateFinder", "DuplicateFinder\DuplicateFinder.csproj", "{1BCE38A4-F62C-4C93-975E-DB9254FEEA70}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateFinderTests", "DuplicateFinderTests\DuplicateFinderTests.csproj", "{F4883E1D-5A98-4063-98C3-679A79C1ADDE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1BCE38A4-F62C-4C93-975E-DB9254FEEA70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BCE38A4-F62C-4C93-975E-DB9254FEEA70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BCE38A4-F62C-4C93-975E-DB9254FEEA70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BCE38A4-F62C-4C93-975E-DB9254FEEA70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F4883E1D-5A98-4063-98C3-679A79C1ADDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4883E1D-5A98-4063-98C3-679A79C1ADDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4883E1D-5A98-4063-98C3-679A79C1ADDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4883E1D-5A98-4063-98C3-679A79C1ADDE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
