@@ -1,39 +1,54 @@
 using System.Collections.Generic;
-using System.IO;
+using System.IO.Abstractions;
 using System.Linq;
 using System.Security.Cryptography;
 
 namespace DuplicateFinder
 {
-    public static class CompareService
+    public interface ICompareService
     {
+        public void AddFile(FileDetail fileDetail);
+        public IEnumerable<FileDetail> GetFilesWithDuplicates();
+
+        public string GetSha256(string filename);
+
+        public List<FileDetail> GetDuplicates(FileDetail newFile);
+    }
+
+    public class CompareService : ICompareService
+    {
+        private readonly IFileSystem _fileSystem;
         private static readonly SHA256 Sha256 = SHA256.Create();
 
         private static readonly List<FileDetail> FileDetails = new List<FileDetail>();
 
         private static readonly IOutput Output = DuplicateFinder.Output.Instance;
 
-        public static void AddFile(FileDetail fileDetail)
+        public CompareService(IFileSystem fileSystem)
         {
-            FileDetails.Add(fileDetail);
+            _fileSystem = fileSystem;
         }
 
-        public static IEnumerable<FileDetail> GetFilesWithDuplicates()
+        public void AddFile(FileDetail fileDetail)
+        {
+                FileDetails.Add(fileDetail);
+        }
+
+        public IEnumerable<FileDetail> GetFilesWithDuplicates()
         {
             return FileDetails.Where(s => s.HasDuplicates).ToList();
         }
-        
-        
-        public static string GetSha256(string filename)
+
+        public string GetSha256(string filename)
         {
             var bytes = GetHashSha256(filename);
             var hash = BytesToString(bytes);
             return hash;
         }
 
-        private static IEnumerable<byte> GetHashSha256(string filename)
+        private IEnumerable<byte> GetHashSha256(string filename)
         {
-            using var stream = File.OpenRead(filename);
+            using var stream = _fileSystem.File.OpenRead(filename);
             return Sha256.ComputeHash(stream);
         }
 
@@ -42,15 +57,20 @@ namespace DuplicateFinder
             return bytes.Aggregate("", (current, b) => current + b.ToString("x2"));
         }
 
-        public static void CheckForDuplicates(FileDetail newFile)
+        public List<FileDetail> GetDuplicates(FileDetail newFile)
         {
-            foreach (var file in FileDetails.Where(file => SizeMatches(file, newFile))
-                .Where(file => Sha256Matches(file, newFile)))
-            {
-                Output.Write($"Collision: [{newFile.FileName}] [{file.FileName}]");
-                newFile.HasDuplicates = true;
-                file.HasDuplicates = true;
-            }
+            // foreach (var file in FileDetails.Where(file => SizeMatches(file, newFile))
+            //     .Where(file => Sha256Matches(file, newFile)))
+            // {
+            //     Output.Write($"Collision: [{newFile.FileName}] [{file.FileName}]");
+            //     newFile.HasDuplicates = true;
+            //     file.HasDuplicates = true;
+            // }
+
+            return FileDetails
+                .Where(file => SizeMatches(file, newFile))
+                .Where(file => Sha256Matches(file, newFile))
+                .ToList();
         }
 
         private static bool Sha256Matches(FileDetail file, FileDetail newFile)
