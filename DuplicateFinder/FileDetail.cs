@@ -4,9 +4,11 @@ namespace DuplicateFinder
     {
         private readonly ICompareService _compareService;
 
-        public FileDetail(ICompareService compareService)
+        public FileDetail(ICompareService compareService, string fileName)
         {
-            this._compareService = compareService;
+            _compareService = compareService;
+            FileName = fileName;
+            FileSize = GetFileSize(fileName);
         }
 
         public string FileName { get;}
@@ -17,22 +19,18 @@ namespace DuplicateFinder
         private string Sha256Lazy
         {
             get => Sha256LazyBackStore;
-            set
-            {
-                Sha256LazyBackStore = value;
-                Sha256HasBeenDetermined = true;
-            }
+            set => Sha256LazyBackStore = value;
+            //Sha256HasBeenDetermined = true;
         }
 
         public string Sha256 => Sha256Lazy ??= (Sha256Lazy = _compareService.GetSha256(FileName));
 
         public bool HasDuplicates { get; set; }
-        public bool Sha256HasBeenDetermined { get; private set; }
+        //private bool Sha256HasBeenDetermined { get; set; }
 
-        public FileDetail(string fileName)
+        private static long GetFileSize(string fileName)
         {
-            FileName = fileName;
-            //FileSize = new System.IO.FileInfo(fileName).Length;
+           return new System.IO.FileInfo(fileName).Length;
         }
     }
 }

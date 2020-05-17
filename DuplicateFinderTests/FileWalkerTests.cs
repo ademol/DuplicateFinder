@@ -97,8 +97,8 @@ namespace DuplicateFinderTests
             const string userFileA = "/home/user1/.profile";
             const string userFileB = "/home/user1/Readme.txt";
 
-            var filesInRootPath = new string[] {rootFile};
-            var filesInUserPath = new string[] {userFileA, userFileB};
+            var filesInRootPath = new [] {rootFile};
+            var filesInUserPath = new [] {userFileA, userFileB};
 
             _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
             _fileSystem.Directory.GetFiles(homePath).Returns(filesInUserPath);
@@ -121,7 +121,7 @@ namespace DuplicateFinderTests
             const string file2 = "/file2";
             const string file3 = "/file3";
 
-            var filesInRootPath = new string[] {file1, file2, file3};
+            var filesInRootPath = new [] {file1, file2, file3};
 
             _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
 

@@ -41,20 +41,8 @@ namespace DuplicateFinder
 
         public FileDetail GetFileDetail(string file)
         {
-            return new FileDetail(file);
+            return new FileDetail(_compareService, file);
         }
-
-
-        //
-//
-//
-//
-//
-//
-
-//
-//
-
 
         public async Task RecursePath(string path)
         {
@@ -96,22 +84,9 @@ namespace DuplicateFinder
                     continue;
                 }
 
-//                var fileInfo = new FileInfo(file);
-                //               var fileInfo = _fileSystem.FileInfo.FromFileName(file);
-
-                // try
-                // {
-                //      if (fileInfo.Length == 0) continue;
-
-                //  var fd = new FileDetail(file);
                 var fileDetail = GetFileDetail(file);
-                //_compareService.GetDuplicates(fileDetail);
+                _compareService.MarkIfDuplicate(fileDetail);
                 _compareService.AddFile(fileDetail);
-                // }
-                // catch (Exception e)
-                // {
-                //     _output.Write(e.Message);
-                // }
             }
         }
 

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO.Abstractions;
-using FileSystem = Microsoft.VisualBasic.FileSystem;
 
 namespace DuplicateFinder
 {
@@ -13,34 +12,31 @@ namespace DuplicateFinder
         private static readonly IOutput Output = DuplicateFinder.Output.Instance;
 
         private static ICompareService _compareService;
-   //     private static IFileWalker _fileWalker;
-   private static IFileSystem _fileSystem;
-   private static IConfigService _configService;
+        private static IFileSystem _fileSystem;
+        private static IConfigService _configService;
 
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            //setup our DI
             var serviceProvider = new ServiceCollection()
-                .AddTransient<IFileWalker,FileWalker>()
-                .AddSingleton<IFileSystem, System.IO.Abstractions.FileSystem>()
+                .AddTransient<IFileWalker, FileWalker>()
+                .AddSingleton<IFileSystem, FileSystem>()
                 .AddSingleton<ICompareService, CompareService>()
                 .AddSingleton<IConfigService, ConfigService>()
                 .AddSingleton<IOutput, Output>()
                 .BuildServiceProvider();
 
             _compareService = serviceProvider.GetService<ICompareService>();
-//            _fileWalker = serviceProvider.GetService<IFileWalker>();
             _fileSystem = serviceProvider.GetService<IFileSystem>();
             _configService = serviceProvider.GetService<IConfigService>();
 
 
             if (args?.Length > 0)
             {
-                SearchSinglePath(args[0]);
+                await SearchSinglePath(args[0]);
             }
             else
             {
-                SearchAll();
+                await SearchAll();
             }
 
             DisplayDuplicates();
@@ -51,7 +47,7 @@ namespace DuplicateFinder
         private static void DisplayDuplicates()
         {
             var fileDetails = _compareService.GetFilesWithDuplicates().ToList();
-            fileDetails.Sort((a,b) => string.Compare(a.Sha256, b.Sha256, StringComparison.Ordinal));
+            fileDetails.Sort((a, b) => string.Compare(a.Sha256, b.Sha256, StringComparison.Ordinal));
 
             var currentSha = "";
             foreach (var fileDetail in fileDetails)
@@ -67,7 +63,7 @@ namespace DuplicateFinder
             }
         }
 
-        private static void SearchSinglePath(string path)
+        private static async Task SearchSinglePath(string path)
         {
             if (!Directory.Exists(path))
             {
@@ -78,14 +74,17 @@ namespace DuplicateFinder
             Output.Write($"[{path}] Task Added");
 
             var fw = new FileWalker(_compareService, _fileSystem, _configService);
-            fw.RecursePath(path);
+
+            await fw.RecursePath(path);
             Output.Write($"[{path}] Task Done");
         }
 
-        private static void SearchAll()
+        private static async Task SearchAll()
         {
             var drives = Directory.GetLogicalDrives().ToList();
-            Parallel.ForEach(drives, SearchSinglePath);
+
+            var tasks = drives.Select(async drive => { await SearchSinglePath(drive); });
+            await Task.WhenAll(tasks);
         }
     }
 }

@@ -12,7 +12,7 @@ namespace DuplicateFinder
 
         public string GetSha256(string filename);
 
-        public List<FileDetail> GetDuplicates(FileDetail newFile);
+        public void MarkIfDuplicate(FileDetail newFile);
     }
 
     public class CompareService : ICompareService
@@ -57,20 +57,16 @@ namespace DuplicateFinder
             return bytes.Aggregate("", (current, b) => current + b.ToString("x2"));
         }
 
-        public List<FileDetail> GetDuplicates(FileDetail newFile)
+        public void MarkIfDuplicate(FileDetail newFile)
         {
-            // foreach (var file in FileDetails.Where(file => SizeMatches(file, newFile))
-            //     .Where(file => Sha256Matches(file, newFile)))
-            // {
-            //     Output.Write($"Collision: [{newFile.FileName}] [{file.FileName}]");
-            //     newFile.HasDuplicates = true;
-            //     file.HasDuplicates = true;
-            // }
-
-            return FileDetails
+            foreach (var file in FileDetails
                 .Where(file => SizeMatches(file, newFile))
-                .Where(file => Sha256Matches(file, newFile))
-                .ToList();
+                .Where(file => Sha256Matches(file, newFile)))
+            {
+                Output.Write($"Collision: [{newFile.FileName}] [{file.FileName}]");
+                newFile.HasDuplicates = true;
+                file.HasDuplicates = true;
+            }
         }
 
         private static bool Sha256Matches(FileDetail file, FileDetail newFile)
