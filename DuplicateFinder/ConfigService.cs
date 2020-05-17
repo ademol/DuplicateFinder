@@ -10,6 +10,16 @@ namespace DuplicateFinder
 
     public class ConfigService : IConfigService
     {
+        public ConfigService()
+        {
+            SetDefaultConfig();
+        }
+
+        private void SetDefaultConfig()
+        {
+            SetFilterExtension(new [] {".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"});
+        }
+
         private string[] ExtensionToFilter { get; set; }
 
         public void SetFilterExtension(string[] extensionToFilter)

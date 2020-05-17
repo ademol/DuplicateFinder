@@ -27,8 +27,6 @@ namespace DuplicateFinder
             _compareService = compareService;
             _fileSystem = fileSystem;
             _configService = configService;
-
-            _configService.SetFilterExtension(new string[] {".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"});
         }
 
         public string[] GetDirectories(string path)
