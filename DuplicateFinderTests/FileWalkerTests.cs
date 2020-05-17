@@ -1,4 +1,6 @@
+using System.IO;
 using System.IO.Abstractions;
+using System.Threading.Tasks;
 using DeepEqual.Syntax;
 using DuplicateFinder;
 using NSubstitute;
@@ -51,60 +53,101 @@ namespace DuplicateFinderTests
         }
 
 
-        // [Fact]
-        // public void RecursePath()
-        // {
-        //     // Given
-        //     const string rootPath = "/";
-        //     const string homePath = "/home";
-        //     const string userPath = "/home/user1";
-        //
-        //     var rootSubDirs = new[] {homePath, "/etc", "/tmp"};
-        //     var homeSubDirs = new[] {userPath};
-        //
-        //     _fileSystem.Directory.GetDirectories(rootPath).Returns(rootSubDirs);
-        //     _fileSystem.Directory.GetDirectories(homePath).Returns(homeSubDirs);
-        //
-        //     var filesInRootPath = new string[] {"/vmlinuz"};
-        //     var filesInUserPath = new string[] {"/home/user1/.profile", "/home/user1/Readme.txt"};
-        //
-        //     _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
-        //     _fileSystem.Directory.GetFiles(userPath).Returns(filesInUserPath);
-        //
-        //     // when
-        //     var actual = RecursePath(rootPath);
-        // }
+        [Fact]
+        public async Task RecursePath_Directories()
+        {
+            // Given
+            const string rootPath = "/";
+            const string homePath = "/home";
+            const string userPath = "/home/user1";
 
-        // [Fact]
-        // public void RecursePath()
-        // {
-        //     // Given
-        //     var rootPaths = new[] {"/home", "/tmp"};
-        //     const string rootFile = "/vmlinuz";
-        //     var rootFiles = new[] {rootFile};
-        //     const string homeDir = "/home/user";
-        //     var homeDirs = new[] {homeDir};
-        //     const string userFileA = "/home/user/.profile";
-        //     const string userFileB = "/home/user/userfile";
-        //     var userHomeDirFiles = new[] {userFileA, userFileB};
-        //
-        //     _fileSystem.Directory.GetDirectories("/").Returns(rootPaths);
-        //     _fileSystem.Directory.GetDirectories("/home").Returns(homeDirs);
-        //
-        //     _fileSystem.Directory.GetFiles("/").Returns(rootFiles);
-        //     _fileSystem.Directory.GetFiles("/home/user").Returns(userHomeDirFiles);
-        //
-        //     _fileSystem.FileInfo.FromFileName(userFileA).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(userFileA)));
-        //     _fileSystem.FileInfo.FromFileName(userFileB).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(userFileB)));
-        //
-        //     // When
-        //     _fileWalker.RecurseDirectories("/");
-        //
-        //     // Then
-        //
-        //     _compareService.Received(1).AddFile(Arg.Is<FileDetail>(s => s.FileName.Equals(rootFile)));
-        //     _compareService.Received(1).AddFile(Arg.Is<FileDetail>(s => s.FileName.Equals(userFileA)));
-        //     _compareService.Received(1).AddFile(Arg.Is<FileDetail>(s => s.FileName.Equals(userFileB)));
-        // }
+            var rootSubDirs = new[] {homePath, "/etc", "/tmp"};
+            var homeSubDirs = new[] {userPath};
+
+            _fileSystem.Directory.GetDirectories(rootPath).Returns(rootSubDirs);
+            _fileSystem.Directory.GetDirectories(homePath).Returns(homeSubDirs);
+
+            // When
+             await _fileWalker.RecursePath(rootPath);
+
+             // Then
+             _fileSystem.Directory.Received(1).GetDirectories(rootPath);
+             _fileSystem.Directory.Received(1).GetDirectories(homePath);
+             _fileSystem.Directory.Received(1).GetDirectories(rootPath);
+             _fileSystem.Directory.Received(1).GetDirectories(homePath);
+        }
+
+        [Fact]
+        public async Task RecursePath_Files()
+        {
+            // Given
+            const string rootPath = "/";
+            const string homePath = "/home";
+            const string userPath = "/home/user1";
+
+            var rootSubDirs = new[] {homePath, "/etc", "/tmp"};
+            var homeSubDirs = new[] {userPath};
+
+            _fileSystem.Directory.GetDirectories(rootPath).Returns(rootSubDirs);
+            _fileSystem.Directory.GetDirectories(homePath).Returns(homeSubDirs);
+
+            const string rootFile = "/vmlinuz";
+            const string userFileA = "/home/user1/.profile";
+            const string userFileB = "/home/user1/Readme.txt";
+
+            var filesInRootPath = new string[] {rootFile};
+            var filesInUserPath = new string[] {userFileA, userFileB};
+
+            _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
+            _fileSystem.Directory.GetFiles(homePath).Returns(filesInUserPath);
+
+            // When
+            await _fileWalker.RecursePath(rootPath);
+
+            // Then
+            _fileSystem.Directory.Received(1).GetFiles(rootPath);
+            _fileSystem.Directory.Received(1).GetFiles(homePath);
+        }
+
+        [Fact]
+        public async Task RecursePath_AddFile()
+        {
+            // Given
+            const string rootPath = "/";
+
+            const string file1 = "/file1";
+            const string file2 = "/file2";
+            const string file3 = "/file3";
+
+            var filesInRootPath = new string[] {file1, file2, file3};
+
+            _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
+
+            _fileSystem.FileInfo.FromFileName(file1).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(file1)));
+            _fileSystem.FileInfo.FromFileName(file2).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(file2)));
+            _fileSystem.FileInfo.FromFileName(file3).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(file3)));
+
+            // When
+            await _fileWalker.RecursePath(rootPath);
+
+            // Then
+            _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file1)));
+            _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file2)));
+            _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file3)));
+        }
+
+       [Theory]
+       [InlineData("/proc", true)]
+       [InlineData("/home", false)]
+       public async Task RecursePath_SkipSpecialDirectories(string path, bool isSpecial)
+        {
+            // Given
+            // When
+            await _fileWalker.RecursePath(path);
+
+            // Then
+            _fileSystem.Directory.Received(isSpecial ? 0 : 1).GetDirectories(Arg.Any<string>());
+        }
     }
 }
+
