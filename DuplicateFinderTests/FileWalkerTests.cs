@@ -13,17 +13,19 @@ namespace DuplicateFinderTests
         private readonly IFileSystem _fileSystem;
         private readonly ICompareService _compareService;
         private readonly FileWalker _fileWalker;
+        private readonly IConfigService _configService;
 
         public FileWalkerTests()
         {
             _compareService = Substitute.For<ICompareService>();
             _fileSystem = Substitute.For<IFileSystem>();
-            _fileWalker = new FileWalker(_compareService, _fileSystem);
+            _configService = Substitute.For<IConfigService>();
+            _fileWalker = new FileWalker(_compareService, _fileSystem, _configService);
         }
 
 
         [Theory]
-        [InlineData("/", new [] { "/tmp", "/etc", "/home"})]
+        [InlineData("/", new[] {"/tmp", "/etc", "/home"})]
         [InlineData("/tmp", null)]
         public void GetDirectories(string path, string[] expectedDirectories)
         {
@@ -31,14 +33,14 @@ namespace DuplicateFinderTests
             _fileSystem.Directory.GetDirectories(path).Returns(expectedDirectories);
 
             // When
-           var actual = _fileWalker.GetDirectories(path);
+            var actual = _fileWalker.GetDirectories(path);
 
             // Then
             actual.ShouldDeepEqual(expectedDirectories);
         }
 
         [Theory]
-        [InlineData("/", new [] { "/vmlinuz"})]
+        [InlineData("/", new[] {"/vmlinuz"})]
         [InlineData("/tmp", null)]
         public void GetFiles(string path, string[] expectedFiles)
         {
@@ -68,13 +70,13 @@ namespace DuplicateFinderTests
             _fileSystem.Directory.GetDirectories(homePath).Returns(homeSubDirs);
 
             // When
-             await _fileWalker.RecursePath(rootPath);
+            await _fileWalker.RecursePath(rootPath);
 
-             // Then
-             _fileSystem.Directory.Received(1).GetDirectories(rootPath);
-             _fileSystem.Directory.Received(1).GetDirectories(homePath);
-             _fileSystem.Directory.Received(1).GetDirectories(rootPath);
-             _fileSystem.Directory.Received(1).GetDirectories(homePath);
+            // Then
+            _fileSystem.Directory.Received(1).GetDirectories(rootPath);
+            _fileSystem.Directory.Received(1).GetDirectories(homePath);
+            _fileSystem.Directory.Received(1).GetDirectories(rootPath);
+            _fileSystem.Directory.Received(1).GetDirectories(homePath);
         }
 
         [Fact]
@@ -136,10 +138,10 @@ namespace DuplicateFinderTests
             _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file3)));
         }
 
-       [Theory]
-       [InlineData("/proc", true)]
-       [InlineData("/home", false)]
-       public async Task RecursePath_SkipSpecialDirectories(string path, bool isSpecial)
+        [Theory]
+        [InlineData("/proc", true)]
+        [InlineData("/home", false)]
+        public async Task RecursePath_SkipSpecialDirectories(string path, bool isSpecial)
         {
             // Given
             // When
@@ -148,6 +150,21 @@ namespace DuplicateFinderTests
             // Then
             _fileSystem.Directory.Received(isSpecial ? 0 : 1).GetDirectories(Arg.Any<string>());
         }
+
+        [Theory]
+        [InlineData(".jpg", "/a.jpg", false)]
+        [InlineData(".jpg", "/b.txt", true)]
+        public async Task RecursePath_FilterFileByExtension(string extensionFilter, string file, bool filterFile)
+        {
+            // Given
+            _fileSystem.Directory.GetFiles("/").Returns(new [] {file});
+            _configService.GetFilterExtension().Returns(new[] {extensionFilter});
+
+            // When
+            await _fileWalker.RecursePath("/");
+
+            // Then
+            _compareService.Received(filterFile ? 0 : 1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file)));
+        }
     }
 }
-

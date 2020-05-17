@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,11 +20,15 @@ namespace DuplicateFinder
         private readonly ICompareService _compareService;
         private readonly IFileSystem _fileSystem;
         private readonly IOutput _output = Output.Instance;
+        private readonly IConfigService _configService;
 
-        public FileWalker(ICompareService compareService, IFileSystem fileSystem)
+        public FileWalker(ICompareService compareService, IFileSystem fileSystem, IConfigService configService)
         {
             _compareService = compareService;
             _fileSystem = fileSystem;
+            _configService = configService;
+
+            _configService.SetFilterExtension(new string[] {".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"});
         }
 
         public string[] GetDirectories(string path)
@@ -50,17 +55,6 @@ namespace DuplicateFinder
 //
 
 //
-//         private static bool FilterByExtensions(string fileName)
-//         {
-//             var extensionsToFilterOut = new List<string>
-//             {
-//                 ".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"
-//             };
-//
-//             var extension = Path.GetExtension(fileName).ToLower();
-//
-//             return extensionsToFilterOut.Select(x => x.ToLower()).Contains(extension);
-//         }
 //
 
 
@@ -73,7 +67,6 @@ namespace DuplicateFinder
                 _output.Write($"[{path}] special: skipping");
                 return;
             }
-
 
             try
             {
@@ -100,10 +93,10 @@ namespace DuplicateFinder
 
             foreach (var file in files)
             {
-                // if (!FilterByExtensions(file))
-                // {
-                //     continue;
-                // }
+                if (!FilterByExtensions(file))
+                {
+                    continue;
+                }
 
 //                var fileInfo = new FileInfo(file);
                 //               var fileInfo = _fileSystem.FileInfo.FromFileName(file);
@@ -131,6 +124,18 @@ namespace DuplicateFinder
             var specialPaths = linuxSystemPaths;
 
             return specialPaths.Contains(path);
+        }
+
+        private bool FilterByExtensions(string fileName)
+        {
+            var filterExtension = _configService.GetFilterExtension();
+
+            var enumerable = filterExtension as string[] ?? filterExtension.ToArray();
+            if (!enumerable.Any()) return true;
+
+            var extension = Path.GetExtension(fileName).ToLower();
+
+            return enumerable.Select(x => x.ToLower()).Contains(extension);
         }
     }
 }
