@@ -41,7 +41,7 @@ namespace DuplicateFinder
 
         public FileDetail GetFileDetail(string file)
         {
-            return new FileDetail(_compareService, file);
+            return new FileDetail(_compareService, _fileSystem, file);
         }
 
         public async Task RecursePath(string path)
