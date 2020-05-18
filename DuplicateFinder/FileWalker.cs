@@ -12,7 +12,6 @@ namespace DuplicateFinder
         public Task RecursePath(string path);
         public string[] GetDirectories(string path);
         public string[] GetFiles(string path);
-        public FileDetail GetFileDetail(string path);
     }
 
     public class FileWalker : IFileWalker
@@ -37,11 +36,6 @@ namespace DuplicateFinder
         public string[] GetFiles(string path)
         {
             return _fileSystem.Directory.GetFiles(path);
-        }
-
-        public FileDetail GetFileDetail(string file)
-        {
-            return new FileDetail(_compareService, _fileSystem, file);
         }
 
         public async Task RecursePath(string path)
@@ -84,7 +78,7 @@ namespace DuplicateFinder
                     continue;
                 }
 
-                var fileDetail = GetFileDetail(file);
+                var fileDetail = new FileDetail(_compareService, _fileSystem, file);
                 _compareService.MarkIfDuplicate(fileDetail);
                 _compareService.AddFile(fileDetail);
             }
