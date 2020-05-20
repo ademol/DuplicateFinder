@@ -32,7 +32,7 @@ namespace DuplicateFinder
             set => this.FileSizeBackingField = value;
         }
 
-        private string Sha256LazyBackingField { get; set; }
+        public string Sha256LazyBackingField { get; set; }
 
         private string Sha256Lazy
         {

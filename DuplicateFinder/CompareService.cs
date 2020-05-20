@@ -42,9 +42,10 @@ namespace DuplicateFinder
 
         public string GetSha256(string filename)
         {
-            Console.WriteLine($"determining SHA256 for {filename}");
+            Console.Write($"determining SHA256 for {filename}");
             var bytes = GetHashSha256(filename);
             var hash = BytesToString(bytes);
+            Console.WriteLine($"[{hash}]");
             return hash;
         }
 
@@ -61,6 +62,7 @@ namespace DuplicateFinder
 
         public void MarkIfDuplicate(FileDetail newFile)
         {
+            //Console.WriteLine($"checking {newFile.FileName} {newFile.FileSize} {newFile.Sha256LazyBackingField}");
             foreach (var file in FileDetails
                 .Where(file => SizeMatches(file, newFile))
                 .Where(file => Sha256Matches(file, newFile)))

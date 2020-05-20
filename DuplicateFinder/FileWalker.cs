@@ -40,8 +40,6 @@ namespace DuplicateFinder
 
         public async Task RecursePath(string path)
         {
-            Console.WriteLine(path);
-
             if (IsSpecialPath(path))
             {
                 _output.Write($"[{path}] special: skipping");
