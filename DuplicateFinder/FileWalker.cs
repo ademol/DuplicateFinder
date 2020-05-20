@@ -54,20 +54,25 @@ namespace DuplicateFinder
                     await RecursePath(dir);
                 }
             }
+            catch (UnauthorizedAccessException e)
+            {
+                //_output.Write(e.Message
+            }
             catch (Exception e)
             {
-                _output.Write(e.Message);
+                _output.Write(e.Message + e.StackTrace);
             }
 
             var files = new List<string>();
             try
             {
-                files = _fileSystem.Directory.GetFiles(path).ToList();
+                files = _fileSystem.Directory.GetFiles(path)?.ToList();
             }
             catch (Exception e)
             {
-                _output.Write(e.Message);
+               // _output.Write(e.Message);
             }
+
 
             foreach (var file in files)
             {

@@ -1,8 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace DuplicateFinder
 {
@@ -25,6 +25,8 @@ namespace DuplicateFinder
 
         private static readonly IOutput Output = DuplicateFinder.Output.Instance;
 
+        private static int sha256Count;
+
         public CompareService(IFileSystem fileSystem)
         {
             _fileSystem = fileSystem;
@@ -32,7 +34,10 @@ namespace DuplicateFinder
 
         public void AddFile(FileDetail fileDetail)
         {
-            FileDetails.Add(fileDetail);
+            lock (FileDetails)
+            {
+                FileDetails.Add(fileDetail);
+            }
         }
 
         public IEnumerable<FileDetail> GetFilesWithDuplicates()
@@ -42,10 +47,12 @@ namespace DuplicateFinder
 
         public string GetSha256(string filename)
         {
-            Console.Write($"determining SHA256 for {filename}");
+            sha256Count++;
+            var identifier = $"[{Thread.CurrentThread.ManagedThreadId}:{sha256Count}]";
+            Output.Write($"{identifier} {filename}: determining SHA256");
             var bytes = GetHashSha256(filename);
             var hash = BytesToString(bytes);
-            Console.WriteLine($"[{hash}]");
+            Output.Write($"{identifier} {filename} SHa256 => [{hash}]");
             return hash;
         }
 
@@ -62,8 +69,14 @@ namespace DuplicateFinder
 
         public void MarkIfDuplicate(FileDetail newFile)
         {
+            List<FileDetail> listCopy;
+            lock (FileDetails)
+            {
+                listCopy = FileDetails.ToList();
+            }
+
             //Console.WriteLine($"checking {newFile.FileName} {newFile.FileSize} {newFile.Sha256LazyBackingField}");
-            foreach (var file in FileDetails
+            foreach (var file in listCopy
                 .Where(file => SizeMatches(file, newFile))
                 .Where(file => Sha256Matches(file, newFile)))
             {
@@ -81,6 +94,11 @@ namespace DuplicateFinder
 
         private static bool SizeMatches(FileDetail file, FileDetail newFile)
         {
+            if (file.FileSize == newFile.FileSize)
+            {
+                Output.Write($"[{Thread.CurrentThread.ManagedThreadId}] Size matches for {newFile.FileName} => {file.FileName}  [{file.FileSize}]");
+            }
+
             return file.FileSize == newFile.FileSize;
         }
     }

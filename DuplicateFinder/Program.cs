@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO.Abstractions;
+using System.Threading;
 
 namespace DuplicateFinder
 {
@@ -29,6 +31,7 @@ namespace DuplicateFinder
             _fileSystem = serviceProvider.GetService<IFileSystem>();
             _configService = serviceProvider.GetService<IConfigService>();
 
+            _configService.SetFilterExtension(new[] {".ISO", ".jpg",  ".mp3"});
 
             if (args?.Length > 0)
             {
@@ -71,7 +74,7 @@ namespace DuplicateFinder
                 return;
             }
 
-            Output.Write($"[{path}] Task Added");
+            Output.Write($"[{path}] Task Added on thread {Thread.CurrentThread.ManagedThreadId}");
 
             var fw = new FileWalker(_compareService, _fileSystem, _configService);
 
@@ -79,12 +82,22 @@ namespace DuplicateFinder
             Output.Write($"[{path}] Task Done");
         }
 
-        private static async Task SearchAll()
+        private static Task SearchAll()
         {
             var drives = Directory.GetLogicalDrives().ToList();
 
-            var tasks = drives.Select(async drive => { await SearchSinglePath(drive); });
-            await Task.WhenAll(tasks);
+            // var tasks = drives.Select(async drive => { await SearchSinglePath(drive); });
+            // await Task.WhenAll(tasks);
+            //
+
+            var taskList = new List<Task>();
+            Parallel.ForEach(drives, (drive) =>
+            {
+                taskList.Add(SearchSinglePath(drive));
+            });
+
+            Task.WaitAll(taskList.ToArray());
+            return Task.FromResult(Task.CompletedTask);
         }
     }
 }
