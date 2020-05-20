@@ -80,7 +80,7 @@ namespace DuplicateFinderTests
         }
 
         [Fact]
-        public async Task RecursePath_Files()
+        public async Task RecursePath_CallsGetFiles()
         {
             // Given
             const string rootPath = "/";
@@ -112,7 +112,7 @@ namespace DuplicateFinderTests
         }
 
         [Fact]
-        public async Task RecursePath_AddFile()
+        public async Task RecursePath_CallsAddFile()
         {
             // Given
             const string rootPath = "/";

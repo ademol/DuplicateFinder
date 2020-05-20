@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
 using System.Linq;
@@ -20,7 +21,7 @@ namespace DuplicateFinder
         private readonly IFileSystem _fileSystem;
         private static readonly SHA256 Sha256 = SHA256.Create();
 
-        private static readonly List<FileDetail> FileDetails = new List<FileDetail>();
+        public readonly List<FileDetail> FileDetails = new List<FileDetail>();
 
         private static readonly IOutput Output = DuplicateFinder.Output.Instance;
 
@@ -31,7 +32,7 @@ namespace DuplicateFinder
 
         public void AddFile(FileDetail fileDetail)
         {
-                FileDetails.Add(fileDetail);
+            FileDetails.Add(fileDetail);
         }
 
         public IEnumerable<FileDetail> GetFilesWithDuplicates()
@@ -41,6 +42,7 @@ namespace DuplicateFinder
 
         public string GetSha256(string filename)
         {
+            Console.WriteLine($"determining SHA256 for {filename}");
             var bytes = GetHashSha256(filename);
             var hash = BytesToString(bytes);
             return hash;
@@ -63,9 +65,10 @@ namespace DuplicateFinder
                 .Where(file => SizeMatches(file, newFile))
                 .Where(file => Sha256Matches(file, newFile)))
             {
-                Output.Write($"Collision: [{newFile.FileName}] [{file.FileName}]");
                 newFile.HasDuplicates = true;
                 file.HasDuplicates = true;
+                Output.Write(
+                    $"Collision: [{newFile.FileName}] [{file.FileName}]  [{file.FileSize}][{file.Sha256}][{file.HasDuplicates}]");
             }
         }
 

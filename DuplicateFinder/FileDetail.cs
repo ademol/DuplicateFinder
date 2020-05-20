@@ -12,18 +12,32 @@ namespace DuplicateFinder
             _compareService = compareService;
             _fileSystem = fileSystem;
             FileName = fileName;
-            FileSize = GetFileSize(fileName);
         }
 
         public string FileName { get; }
-        public long FileSize { get; }
 
-        private string Sha256LazyBackStore { get; set; }
+        private long FileSizeBackingField { get; set; }
+
+        public long FileSize
+        {
+            get
+            {
+                if (FileSizeBackingField == 0)
+                {
+                    FileSizeBackingField = GetFileSize(FileName);
+                }
+
+                return FileSizeBackingField;
+            }
+            set => this.FileSizeBackingField = value;
+        }
+
+        private string Sha256LazyBackingField { get; set; }
 
         private string Sha256Lazy
         {
-            get => Sha256LazyBackStore;
-            set => Sha256LazyBackStore = value;
+            get => Sha256LazyBackingField;
+            set => Sha256LazyBackingField = value;
         }
 
         public string Sha256 => Sha256Lazy ??= (Sha256Lazy = _compareService.GetSha256(FileName));
