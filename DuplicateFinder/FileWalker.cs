@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DuplicateFinder
@@ -10,80 +10,56 @@ namespace DuplicateFinder
     public interface IFileWalker
     {
         public Task RecursePath(string path);
-        public string[] GetDirectories(string path);
-        public string[] GetFiles(string path);
     }
 
     public class FileWalker : IFileWalker
     {
         private readonly ICompareService _compareService;
-        private readonly IFileSystem _fileSystem;
-        private readonly IOutput _output = Output.Instance;
         private readonly IConfigService _configService;
+        private readonly IFileSystemService _fileSystemService;
 
-        public FileWalker(ICompareService compareService, IFileSystem fileSystem, IConfigService configService)
+        public FileWalker(ICompareService compareService,
+            IConfigService configService,
+            IFileSystemService fileSystemService)
         {
             _compareService = compareService;
-            _fileSystem = fileSystem;
             _configService = configService;
+            _fileSystemService = fileSystemService;
         }
 
-        public string[] GetDirectories(string path)
-        {
-            return _fileSystem.Directory.GetDirectories(path);
-        }
-
-        public string[] GetFiles(string path)
-        {
-            return _fileSystem.Directory.GetFiles(path);
-        }
 
         public async Task RecursePath(string path)
         {
             if (IsSpecialPath(path))
             {
-                _output.Write($"[{path}] special: skipping");
+                Output.Write($"[{path}] special: skipping");
                 return;
             }
 
             try
             {
-                var subDirs = _fileSystem.Directory.GetDirectories(path);
+                var subDirs = _fileSystemService.GetDirectories(path);
                 foreach (var dir in subDirs)
                 {
                     await RecursePath(dir);
                 }
             }
-            catch (UnauthorizedAccessException e)
-            {
-                //_output.Write(e.Message
-            }
             catch (Exception e)
             {
-                _output.Write(e.Message + e.StackTrace);
+                Output.Write($"[{Thread.CurrentThread.ManagedThreadId}] {e.Message}");
             }
 
-            var files = new List<string>();
             try
             {
-                files = _fileSystem.Directory.GetFiles(path)?.ToList();
+                var files = _fileSystemService.GetFiles(path).ToList();
+                foreach (var file in files.Where(FilterByExtensions))
+                {
+                    await _compareService.MarkIfDuplicate(file);
+                }
             }
             catch (Exception e)
             {
-               // _output.Write(e.Message);
-            }
-
-
-            foreach (var file in files)
-            {
-                if (!FilterByExtensions(file))
-                {
-                    continue;
-                }
-
-                var fileDetail = new FileDetail(_compareService, _fileSystem, file);
-                _compareService.MarkIfDuplicate(fileDetail);
-                _compareService.AddFile(fileDetail);
+                Output.Write($"[{Thread.CurrentThread.ManagedThreadId}] {e.Message}");
             }
         }
 

@@ -1,17 +1,18 @@
-using System.IO.Abstractions;
-
 namespace DuplicateFinder
 {
     public class FileDetail
     {
-        private readonly ICompareService _compareService;
-        private readonly IFileSystem _fileSystem;
+        private readonly IFileSystemService _fileSystemService;
+        private readonly IFileDetailService _fileDetailService;
 
-        public FileDetail(ICompareService compareService, IFileSystem fileSystem, string fileName)
+        public FileDetail(
+            IFileSystemService fileSystemService,
+            IFileDetailService fileDetailService,
+            string fileName)
         {
-            _compareService = compareService;
-            _fileSystem = fileSystem;
             FileName = fileName;
+            _fileDetailService = fileDetailService;
+            _fileSystemService = fileSystemService;
         }
 
         public string FileName { get; }
@@ -24,29 +25,24 @@ namespace DuplicateFinder
             {
                 if (FileSizeBackingField == 0)
                 {
-                    FileSizeBackingField = GetFileSize(FileName);
+                    FileSizeBackingField = _fileSystemService.GetFileLength(FileName);
                 }
 
                 return FileSizeBackingField;
             }
-            set => this.FileSizeBackingField = value;
         }
 
-        public string Sha256LazyBackingField { get; set; }
+        private string Sha256LazyBackingField { get; set; }
 
-        private string Sha256Lazy
+        public string Sha256Lazy
         {
-            get => Sha256LazyBackingField;
-            set => Sha256LazyBackingField = value;
+            get
+            {
+                Sha256LazyBackingField ??= _fileDetailService.GetSha256(FileName).Result;
+                return Sha256LazyBackingField;
+            }
         }
-
-        public string Sha256 => Sha256Lazy ??= (Sha256Lazy = _compareService.GetSha256(FileName));
 
         public bool HasDuplicates { get; set; }
-
-        private long GetFileSize(string fileName)
-        {
-            return _fileSystem.FileInfo.FromFileName(fileName).Length;
-        }
     }
 }

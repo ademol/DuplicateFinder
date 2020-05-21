@@ -1,57 +1,26 @@
+using System;
 using System.IO;
-using System.IO.Abstractions;
 using System.Threading.Tasks;
-using DeepEqual.Syntax;
 using DuplicateFinder;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Xunit;
 
 namespace DuplicateFinderTests
 {
     public class FileWalkerTests
     {
-        private readonly IFileSystem _fileSystem;
         private readonly ICompareService _compareService;
         private readonly FileWalker _fileWalker;
         private readonly IConfigService _configService;
+        private readonly IFileSystemService _fileSystemService;
 
         public FileWalkerTests()
         {
             _compareService = Substitute.For<ICompareService>();
-            _fileSystem = Substitute.For<IFileSystem>();
             _configService = Substitute.For<IConfigService>();
-            _fileWalker = new FileWalker(_compareService, _fileSystem, _configService);
-        }
-
-
-        [Theory]
-        [InlineData("/", new[] {"/tmp", "/etc", "/home"})]
-        [InlineData("/tmp", null)]
-        public void GetDirectories(string path, string[] expectedDirectories)
-        {
-            // Given
-            _fileSystem.Directory.GetDirectories(path).Returns(expectedDirectories);
-
-            // When
-            var actual = _fileWalker.GetDirectories(path);
-
-            // Then
-            actual.ShouldDeepEqual(expectedDirectories);
-        }
-
-        [Theory]
-        [InlineData("/", new[] {"/vmlinuz"})]
-        [InlineData("/tmp", null)]
-        public void GetFiles(string path, string[] expectedFiles)
-        {
-            // Given
-            _fileSystem.Directory.GetFiles(path).Returns(expectedFiles);
-
-            // When
-            var actual = _fileWalker.GetFiles(path);
-
-            // Then
-            actual.ShouldDeepEqual(expectedFiles);
+            _fileSystemService = Substitute.For<IFileSystemService>();
+            _fileWalker = new FileWalker(_compareService, _configService, _fileSystemService);
         }
 
 
@@ -66,17 +35,17 @@ namespace DuplicateFinderTests
             var rootSubDirs = new[] {homePath, "/etc", "/tmp"};
             var homeSubDirs = new[] {userPath};
 
-            _fileSystem.Directory.GetDirectories(rootPath).Returns(rootSubDirs);
-            _fileSystem.Directory.GetDirectories(homePath).Returns(homeSubDirs);
+            _fileSystemService.GetDirectories(rootPath).Returns(rootSubDirs);
+            _fileSystemService.GetDirectories(homePath).Returns(homeSubDirs);
 
             // When
             await _fileWalker.RecursePath(rootPath);
 
             // Then
-            _fileSystem.Directory.Received(1).GetDirectories(rootPath);
-            _fileSystem.Directory.Received(1).GetDirectories(homePath);
-            _fileSystem.Directory.Received(1).GetDirectories(rootPath);
-            _fileSystem.Directory.Received(1).GetDirectories(homePath);
+            _fileSystemService.Received(1).GetDirectories(rootPath);
+            _fileSystemService.Received(1).GetDirectories(homePath);
+            _fileSystemService.Received(1).GetDirectories(rootPath);
+            _fileSystemService.Received(1).GetDirectories(homePath);
         }
 
         [Fact]
@@ -90,29 +59,29 @@ namespace DuplicateFinderTests
             var rootSubDirs = new[] {homePath, "/etc", "/tmp"};
             var homeSubDirs = new[] {userPath};
 
-            _fileSystem.Directory.GetDirectories(rootPath).Returns(rootSubDirs);
-            _fileSystem.Directory.GetDirectories(homePath).Returns(homeSubDirs);
+            _fileSystemService.GetDirectories(rootPath).Returns(rootSubDirs);
+            _fileSystemService.GetDirectories(homePath).Returns(homeSubDirs);
 
             const string rootFile = "/vmlinuz";
             const string userFileA = "/home/user1/.profile";
             const string userFileB = "/home/user1/Readme.txt";
 
-            var filesInRootPath = new [] {rootFile};
-            var filesInUserPath = new [] {userFileA, userFileB};
+            var filesInRootPath = new[] {rootFile};
+            var filesInUserPath = new[] {userFileA, userFileB};
 
-            _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
-            _fileSystem.Directory.GetFiles(homePath).Returns(filesInUserPath);
+            _fileSystemService.GetFiles(rootPath).Returns(filesInRootPath);
+            _fileSystemService.GetFiles(homePath).Returns(filesInUserPath);
 
             // When
             await _fileWalker.RecursePath(rootPath);
 
             // Then
-            _fileSystem.Directory.Received(1).GetFiles(rootPath);
-            _fileSystem.Directory.Received(1).GetFiles(homePath);
+            _fileSystemService.Received(1).GetFiles(rootPath);
+            _fileSystemService.Received(1).GetFiles(homePath);
         }
 
         [Fact]
-        public async Task RecursePath_CallsAddFile()
+        public async Task RecursePath_MarkIfDuplicate()
         {
             // Given
             const string rootPath = "/";
@@ -121,21 +90,17 @@ namespace DuplicateFinderTests
             const string file2 = "/file2";
             const string file3 = "/file3";
 
-            var filesInRootPath = new [] {file1, file2, file3};
+            var filesInRootPath = new[] {file1, file2, file3};
 
-            _fileSystem.Directory.GetFiles(rootPath).Returns(filesInRootPath);
-
-            _fileSystem.FileInfo.FromFileName(file1).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(file1)));
-            _fileSystem.FileInfo.FromFileName(file2).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(file2)));
-            _fileSystem.FileInfo.FromFileName(file3).Returns(new FileInfoWrapper(_fileSystem, new FileInfo(file3)));
+            _fileSystemService.GetFiles(rootPath).Returns(filesInRootPath);
 
             // When
             await _fileWalker.RecursePath(rootPath);
 
             // Then
-            _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file1)));
-            _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file2)));
-            _compareService.Received(1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file3)));
+            await _compareService.Received(1).MarkIfDuplicate(file1);
+            await _compareService.Received(1).MarkIfDuplicate(file2);
+            await _compareService.Received(1).MarkIfDuplicate(file3);
         }
 
         [Theory]
@@ -148,7 +113,7 @@ namespace DuplicateFinderTests
             await _fileWalker.RecursePath(path);
 
             // Then
-            _fileSystem.Directory.Received(isSpecial ? 0 : 1).GetDirectories(Arg.Any<string>());
+            _fileSystemService.Received(isSpecial ? 0 : 1).GetDirectories(Arg.Any<string>());
         }
 
         [Theory]
@@ -157,14 +122,76 @@ namespace DuplicateFinderTests
         public async Task RecursePath_FilterFileByExtension(string extensionFilter, string file, bool filterFile)
         {
             // Given
-            _fileSystem.Directory.GetFiles("/").Returns(new [] {file});
+            _fileSystemService.GetFiles("/").Returns(new[] {file});
             _configService.GetFilterExtension().Returns(new[] {extensionFilter});
 
             // When
             await _fileWalker.RecursePath("/");
 
             // Then
-            _compareService.Received(filterFile ? 0 : 1).AddFile(Arg.Is<FileDetail>(detail => detail.FileName.Equals(file)));
+            await _compareService.Received(filterFile ? 0 : 1).MarkIfDuplicate(Arg.Is<string>(f => f.Equals(file)));
+        }
+
+
+        [Fact]
+        public async Task RecursePath_GetDirectories_OutputException()
+        {
+            const string path = "/unAuthorizedPath";
+            const string expectedOutput = "Get Dirs: Write was called";
+
+            Output.MessageOverride(m => expectedOutput);
+
+            // Given
+            var expected = new UnauthorizedAccessException();
+            _fileSystemService.GetDirectories(path).Throws(expected);
+
+            var origOutWriter = Console.Out;
+
+            await using (var sw = new StringWriter())
+            {
+                Console.SetOut(sw);
+
+                // When
+                await _fileWalker.RecursePath(path);
+
+                var actual = sw.ToString().Replace("\n", "").Replace("\r", "");
+
+                // Then
+                Assert.True(actual.Equals(expectedOutput));
+            }
+
+            Console.SetOut(origOutWriter);
+        }
+
+        [Fact]
+        public async Task RecursePath_GetFiles_OutputException()
+        {
+            const string path = "/unAuthorizedPath";
+
+            const string expectedOutput = "GetFiles: Write was called";
+
+            Output.MessageOverride(m => expectedOutput);
+
+            // Given
+            var expected = new UnauthorizedAccessException();
+            _fileSystemService.GetFiles(path).Throws(expected);
+
+            var origOutWriter = Console.Out;
+
+            await using (var sw = new StringWriter())
+            {
+                Console.SetOut(sw);
+
+                // When
+                await _fileWalker.RecursePath(path);
+
+                var actual = sw.ToString().Replace("\n", "").Replace("\r", "");
+
+                // Then
+                Assert.True(actual.Equals(expectedOutput));
+            }
+
+            Console.SetOut(origOutWriter);
         }
     }
 }

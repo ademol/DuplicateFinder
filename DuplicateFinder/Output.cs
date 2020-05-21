@@ -1,30 +1,34 @@
 using System;
-using System.Threading;
 
 namespace DuplicateFinder
 {
-    public interface IOutput
+    public static class Output
     {
-        public void Write(string message);
-    }
-
-    public sealed class Output : IOutput
-    {
-        private static readonly Lazy<Output> Lazy = new Lazy<Output>(() => new Output());
-
-        public static Output Instance => Lazy.Value;
+        private static Func<string, string> _func;
 
         private static readonly object ConsoleWriterLock = new object();
 
-        private Output()
+        public static string LastMessage { get; private set; }
+
+        static Output()
         {
+            _func = message => message;
         }
 
-        public void Write(string message)
+        public static void MessageOverride(Func<string, string> func)
+        {
+            lock (_func)
+            {
+                _func = func;
+            }
+        }
+
+        public static void Write(string message)
         {
             lock (ConsoleWriterLock)
             {
-                Console.WriteLine($"{message}");
+                Console.WriteLine($"{_func.Invoke(message)}");
+                LastMessage = message;
             }
         }
     }

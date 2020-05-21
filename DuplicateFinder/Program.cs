@@ -1,103 +1,41 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO.Abstractions;
-using System.Threading;
 
 namespace DuplicateFinder
 {
     internal static class Program
     {
-        private static readonly IOutput Output = DuplicateFinder.Output.Instance;
-
         private static ICompareService _compareService;
-        private static IFileSystem _fileSystem;
         private static IConfigService _configService;
+        private static IFileWalker _fileWalker;
+        private static IFileSystemService _fileSystemService;
 
+        [ExcludeFromCodeCoverage]
         private static async Task Main(string[] args)
         {
             var serviceProvider = new ServiceCollection()
                 .AddTransient<IFileWalker, FileWalker>()
-                .AddSingleton<IFileSystem, FileSystem>()
                 .AddSingleton<ICompareService, CompareService>()
+                .AddTransient<IFileSystemService, FileSystemService>()
+                .AddTransient<IFileDetailService, FileDetailService>()
+                .AddSingleton<IFileSystem, FileSystem>()
                 .AddSingleton<IConfigService, ConfigService>()
-                .AddSingleton<IOutput, Output>()
+                .AddSingleton<IDuplicateFinder, DuplicateFinder>()
                 .BuildServiceProvider();
 
-            _compareService = serviceProvider.GetService<ICompareService>();
-            _fileSystem = serviceProvider.GetService<IFileSystem>();
             _configService = serviceProvider.GetService<IConfigService>();
+            _fileWalker = serviceProvider.GetService<IFileWalker>();
+            _compareService = serviceProvider.GetService<ICompareService>();
+            _fileSystemService = serviceProvider.GetService<IFileSystemService>();
 
-            _configService.SetFilterExtension(new[] {".ISO", ".jpg",  ".mp3"});
+            var duplicateFinder = new DuplicateFinder(_compareService, _fileWalker, _fileSystemService, _configService);
 
-            if (args?.Length > 0)
-            {
-                await SearchSinglePath(args[0]);
-            }
-            else
-            {
-                await SearchAll();
-            }
+            await duplicateFinder.Execute(args);
 
-            DisplayDuplicates();
             Environment.Exit(0);
-        }
-
-
-        private static void DisplayDuplicates()
-        {
-            var fileDetails = _compareService.GetFilesWithDuplicates().ToList();
-            fileDetails.Sort((a, b) => string.Compare(a.Sha256, b.Sha256, StringComparison.Ordinal));
-
-            var currentSha = "";
-            foreach (var fileDetail in fileDetails)
-            {
-                if (currentSha != fileDetail.Sha256)
-                {
-                    Output.Write("");
-                    currentSha = fileDetail.Sha256;
-                }
-
-                const char s = '"';
-                Output.Write($"{fileDetail.Sha256} : {s}{fileDetail.FileName}{s}");
-            }
-        }
-
-        private static async Task SearchSinglePath(string path)
-        {
-            if (!Directory.Exists(path))
-            {
-                Output.Write($"[{path}] does not exists");
-                return;
-            }
-
-            Output.Write($"[{path}] Task Added on thread {Thread.CurrentThread.ManagedThreadId}");
-
-            var fw = new FileWalker(_compareService, _fileSystem, _configService);
-
-            await fw.RecursePath(path);
-            Output.Write($"[{path}] Task Done");
-        }
-
-        private static Task SearchAll()
-        {
-            var drives = Directory.GetLogicalDrives().ToList();
-
-            // var tasks = drives.Select(async drive => { await SearchSinglePath(drive); });
-            // await Task.WhenAll(tasks);
-            //
-
-            var taskList = new List<Task>();
-            Parallel.ForEach(drives, (drive) =>
-            {
-                taskList.Add(SearchSinglePath(drive));
-            });
-
-            Task.WaitAll(taskList.ToArray());
-            return Task.FromResult(Task.CompletedTask);
         }
     }
 }

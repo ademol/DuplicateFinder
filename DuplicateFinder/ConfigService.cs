@@ -17,7 +17,7 @@ namespace DuplicateFinder
 
         private void SetDefaultConfig()
         {
-            SetFilterExtension(new [] {".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"});
+            SetFilterExtension(new[] {".mp4", ".jpg", ".mp3", ".doc", ".webm", ".odg"});
         }
 
         private string[] ExtensionToFilter { get; set; }

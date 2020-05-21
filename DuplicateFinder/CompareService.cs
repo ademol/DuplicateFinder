@@ -1,104 +1,73 @@
 using System.Collections.Generic;
-using System.IO.Abstractions;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DuplicateFinder
 {
     public interface ICompareService
     {
-        public void AddFile(FileDetail fileDetail);
         public IEnumerable<FileDetail> GetFilesWithDuplicates();
 
-        public string GetSha256(string filename);
-
-        public void MarkIfDuplicate(FileDetail newFile);
+        public Task MarkIfDuplicate(string filename);
     }
 
     public class CompareService : ICompareService
     {
-        private readonly IFileSystem _fileSystem;
-        private static readonly SHA256 Sha256 = SHA256.Create();
+        private readonly IFileSystemService _fileSystemService;
+        private readonly IFileDetailService _fileDetailService;
 
         public readonly List<FileDetail> FileDetails = new List<FileDetail>();
 
-        private static readonly IOutput Output = DuplicateFinder.Output.Instance;
 
-        private static int sha256Count;
-
-        public CompareService(IFileSystem fileSystem)
+        public CompareService(
+            IFileSystemService fileSystemService,
+            IFileDetailService fileDetailService
+        )
         {
-            _fileSystem = fileSystem;
+            _fileSystemService = fileSystemService;
+            _fileDetailService = fileDetailService;
         }
 
-        public void AddFile(FileDetail fileDetail)
-        {
-            lock (FileDetails)
-            {
-                FileDetails.Add(fileDetail);
-            }
-        }
 
         public IEnumerable<FileDetail> GetFilesWithDuplicates()
         {
-            return FileDetails.Where(s => s.HasDuplicates).ToList();
-        }
-
-        public string GetSha256(string filename)
-        {
-            sha256Count++;
-            var identifier = $"[{Thread.CurrentThread.ManagedThreadId}:{sha256Count}]";
-            Output.Write($"{identifier} {filename}: determining SHA256");
-            var bytes = GetHashSha256(filename);
-            var hash = BytesToString(bytes);
-            Output.Write($"{identifier} {filename} SHa256 => [{hash}]");
-            return hash;
-        }
-
-        private IEnumerable<byte> GetHashSha256(string filename)
-        {
-            using var stream = _fileSystem.File.OpenRead(filename);
-            return Sha256.ComputeHash(stream);
-        }
-
-        private static string BytesToString(IEnumerable<byte> bytes)
-        {
-            return bytes.Aggregate("", (current, b) => current + b.ToString("x2"));
-        }
-
-        public void MarkIfDuplicate(FileDetail newFile)
-        {
-            List<FileDetail> listCopy;
             lock (FileDetails)
             {
-                listCopy = FileDetails.ToList();
+                return FileDetails.Where(s => s.HasDuplicates).ToList();
+            }
+        }
+
+
+        public Task MarkIfDuplicate(string newFile)
+        {
+            lock (FileDetails)
+            {
+                var newFileDetail = new FileDetail(_fileSystemService, _fileDetailService, newFile);
+
+                foreach (var file in FileDetails
+                    .Where(file => SizeMatches(file, newFileDetail))
+                    .Where(file => Sha256Matches(file, newFileDetail)))
+                {
+                    newFileDetail.HasDuplicates = true;
+                    file.HasDuplicates = true;
+                    Output.Write($"[{Thread.CurrentThread.ManagedThreadId}] Collision: [{newFile}]");
+                    break;
+                }
+
+                FileDetails.Add(newFileDetail);
             }
 
-            //Console.WriteLine($"checking {newFile.FileName} {newFile.FileSize} {newFile.Sha256LazyBackingField}");
-            foreach (var file in listCopy
-                .Where(file => SizeMatches(file, newFile))
-                .Where(file => Sha256Matches(file, newFile)))
-            {
-                newFile.HasDuplicates = true;
-                file.HasDuplicates = true;
-                Output.Write(
-                    $"Collision: [{newFile.FileName}] [{file.FileName}]  [{file.FileSize}][{file.Sha256}][{file.HasDuplicates}]");
-            }
+            return Task.CompletedTask;
         }
 
         private static bool Sha256Matches(FileDetail file, FileDetail newFile)
         {
-            return file.Sha256 == newFile.Sha256;
+            return file.Sha256Lazy == newFile.Sha256Lazy;
         }
 
         private static bool SizeMatches(FileDetail file, FileDetail newFile)
         {
-            if (file.FileSize == newFile.FileSize)
-            {
-                Output.Write($"[{Thread.CurrentThread.ManagedThreadId}] Size matches for {newFile.FileName} => {file.FileName}  [{file.FileSize}]");
-            }
-
             return file.FileSize == newFile.FileSize;
         }
     }

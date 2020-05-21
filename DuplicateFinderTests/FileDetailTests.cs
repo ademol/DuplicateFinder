@@ -15,26 +15,50 @@ namespace DuplicateFinderTests
         }
 
         [Fact]
-        public void Sha256Lazy_SingleTimeCalculateSha()
+        public void Sha256Lazy_SingleTimeCalculate()
         {
             // Given
             const string expected = "sha256string";
             const string fileName = "/a.txt";
-            var compareService = Substitute.For<ICompareService>();
+            var fileDetailService = Substitute.For<IFileDetailService>();
+            var fileSystemService = Substitute.For<IFileSystemService>();
 
-            compareService.GetSha256(fileName).Returns(expected);
+            fileDetailService.GetSha256(fileName).Returns(expected);
             _fileSystem.FileInfo.FromFileName(fileName).Length.Returns(42);
 
-            var fileDetail = new FileDetail(compareService, _fileSystem, fileName);
+            var fileDetail = new FileDetail(fileSystemService, fileDetailService, fileName);
 
             // When
-            var actual = fileDetail.Sha256;
-            var actualAgain = fileDetail.Sha256;
+            var actual = fileDetail.Sha256Lazy;
+            var actualAgain = fileDetail.Sha256Lazy;
 
             // Then
             Assert.True(actual.Equals(expected));
             Assert.True(actualAgain.Equals(expected));
-            compareService.Received(1).GetSha256(fileName);
+            fileDetailService.Received(1).GetSha256(fileName);
+        }
+
+        [Fact]
+        public void FileSizeBackingField_SingleTimeCalculate()
+        {
+            const long expected = 42;
+            const string fileName = "/a.txt";
+            var fileDetailService = Substitute.For<IFileDetailService>();
+            var fileSystemService = Substitute.For<IFileSystemService>();
+
+            fileSystemService.GetFileLength(fileName).Returns(expected);
+            _fileSystem.FileInfo.FromFileName(fileName).Length.Returns(42);
+
+            var fileDetail = new FileDetail(fileSystemService, fileDetailService, fileName);
+
+            // When
+            var actual = fileDetail.FileSize;
+            var actualAgain = fileDetail.FileSize;
+
+            // Then
+            Assert.True(actual.Equals(expected));
+            Assert.True(actualAgain.Equals(expected));
+            fileSystemService.Received(1).GetFileLength(fileName);
         }
     }
 }
